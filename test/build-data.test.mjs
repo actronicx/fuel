@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { build, parseCsv, isoDay, tileKey } from "../scripts/build-data.mjs";
+import { build, parseCsv, isoDay, tileKey, pickFromFolder } from "../scripts/build-data.mjs";
 
 // I file in test/fixtures sono DATI DI PROVA inventati, nel formato MIMIT dal 10/02/2026 (separatore "|").
 const fixture = (f) => readFile(new URL(`fixtures/${f}`, import.meta.url), "utf8");
@@ -44,4 +44,10 @@ test("scarta i prezzi assurdi (errori di battitura)", async () => {
   const s = Object.values(tiles).flat().find((s) => s.i === 1002);
   assert.equal(s.f.G[1], null, "0,199 €/l va scartato");
   assert.ok(s.f.G[0] > 1.5, "il prezzo self valido resta");
+});
+
+test("riconosce i file nella cartella dal contenuto", async () => {
+  const f = await pickFromFolder(new URL("fixtures", import.meta.url).pathname);
+  assert.equal(f.anagrafica.name, "anagrafica.csv");
+  assert.equal(f.prezzi.name, "prezzi.csv");
 });

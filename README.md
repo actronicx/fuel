@@ -26,6 +26,12 @@ npm run data        # dati reali dal Ministero
 npm start           # serve public/ su http://localhost:5173
 ```
 
+## Aggiornamento dei prezzi (fase di sviluppo)
+
+I server GitHub non raggiungono mimit.gov.it (blocca le connessioni dall'estero),
+quindi per ora i due file si caricano a mano nella cartella `fonte/`: istruzioni
+in [fonte/LEGGIMI.md](fonte/LEGGIMI.md). Più avanti lo farà un piccolo server in Italia.
+
 ## Messa online
 
 1. Su GitHub: Settings → Pages → Source: **GitHub Actions**.

@@ -30,7 +30,15 @@ jobs:
         with:
           node-version: 22
       - run: node --test test/*.test.mjs
-      - run: node scripts/build-data.mjs --out public/data
+      # In fase di sviluppo i due file MIMIT si caricano a mano nella cartella fonte/
+      # (i server GitHub non raggiungono mimit.gov.it). Senza file si prova a scaricarli.
+      - name: Prepara i dati
+        run: |
+          if ls fonte/*.csv >/dev/null 2>&1; then
+            node scripts/build-data.mjs --out public/data --cartella fonte
+          else
+            node scripts/build-data.mjs --out public/data
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

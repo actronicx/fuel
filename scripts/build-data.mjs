@@ -6,8 +6,9 @@
 // Uso:
 //   node scripts/build-data.mjs --out public/data
 //   node scripts/build-data.mjs --out /tmp/data --anagrafica a.csv --prezzi p.csv   (file locali)
+//   node scripts/build-data.mjs --out public/data --cartella fonte   (file caricati a mano)
 
-import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 const SOURCES = {
@@ -146,12 +147,37 @@ async function download(url) {
   }
 }
 
+// Cerca nella cartella i due file MIMIT riconoscendoli dal contenuto, non dal nome:
+// scaricati dal telefono possono chiamarsi "prezzo_alle_8 (1).csv" e simili.
+// Se ce ne sono più versioni usa la più recente (riga "Estrazione del ...").
+export async function pickFromFolder(dir) {
+  const found = {};
+  for (const name of await readdir(dir)) {
+    if (!name.toLowerCase().endsWith(".csv")) continue;
+    const text = await readFile(path.join(dir, name), "utf8");
+    const head = text.slice(0, 400).toLowerCase();
+    const kind = head.includes("desccarburante") ? "prezzi" : head.includes("latitudine") ? "anagrafica" : null;
+    if (!kind) continue;
+    const day = (head.match(/\d{4}-\d{2}-\d{2}/) || [""])[0];
+    if (!found[kind] || day > found[kind].day) found[kind] = { name, day, text };
+  }
+  for (const k of ["anagrafica", "prezzi"])
+    if (!found[k]) throw new Error(`Nella cartella ${dir} manca il file ${k === "prezzi" ? "prezzo_alle_8.csv" : "anagrafica_impianti_attivi.csv"}`);
+  console.log(`Uso ${found.anagrafica.name} (${found.anagrafica.day}) e ${found.prezzi.name} (${found.prezzi.day})`);
+  return found;
+}
+
 async function main() {
   const args = Object.fromEntries(
     process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith("--") ? [...acc, [a.slice(2), all[i + 1]]] : acc), [])
   );
   const out = args.out || "public/data";
-  const [anaText, preText] = await Promise.all([
+  if (args.cartella) {
+    const f = await pickFromFolder(args.cartella);
+    args.anagraficaText = f.anagrafica.text;
+    args.prezziText = f.prezzi.text;
+  }
+  const [anaText, preText] = args.anagraficaText ? [args.anagraficaText, args.prezziText] : await Promise.all([
     args.anagrafica ? readFile(args.anagrafica, "utf8") : download(SOURCES.anagrafica),
     args.prezzi ? readFile(args.prezzi, "utf8") : download(SOURCES.prezzi),
   ]);
