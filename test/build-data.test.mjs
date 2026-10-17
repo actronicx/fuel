@@ -36,3 +36,12 @@ test("unisce anagrafica e prezzi, scarta coordinate e carburanti non validi", as
   assert.ok(all.every((s) => tiles[tileKey(s.y, s.x)].includes(s)));
   assert.deepEqual(comuni.map((c) => c[0]), ["Fiumicino", "Milano", "Roma"]);
 });
+
+test("scarta i prezzi assurdi (errori di battitura)", async () => {
+  const ana = await fixture("anagrafica.csv");
+  const pre = (await fixture("prezzi.csv")) + "1002|Gasolio|0.199|0|16/10/2026 07:00:00\n";
+  const { tiles } = build(ana, pre);
+  const s = Object.values(tiles).flat().find((s) => s.i === 1002);
+  assert.equal(s.f.G[1], null, "0,199 €/l va scartato");
+  assert.ok(s.f.G[0] > 1.5, "il prezzo self valido resta");
+});

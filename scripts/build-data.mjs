@@ -89,6 +89,23 @@ export function build(anagraficaText, prezziText) {
     if (day && (!slot[2] || day > slot[2])) slot[2] = day;
   }
 
+  // Scarta i prezzi lontanissimi dalla mediana nazionale (errori di battitura dei gestori),
+  // che altrimenti finirebbero in cima come "miglior scelta".
+  const values = {};
+  for (const s of stations.values())
+    for (const [k, slot] of Object.entries(s.f))
+      for (const i of [0, 1]) if (slot[i] !== null) (values[k + i] ||= []).push(slot[i]);
+  const median = {};
+  for (const [k, v] of Object.entries(values)) median[k] = v.sort((a, b) => a - b)[Math.floor(v.length / 2)];
+  for (const s of stations.values())
+    for (const [k, slot] of Object.entries(s.f)) {
+      for (const i of [0, 1]) {
+        const m = median[k + i];
+        if (slot[i] !== null && (slot[i] < m * 0.7 || slot[i] > m * 1.5)) slot[i] = null;
+      }
+      if (slot[0] === null && slot[1] === null) delete s.f[k];
+    }
+
   const tiles = {};
   const comuni = new Map();
   for (const s of stations.values()) {
