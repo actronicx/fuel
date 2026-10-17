@@ -122,7 +122,8 @@ async function download(url) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.text();
     } catch (e) {
-      if (attempt >= 4) throw new Error(`Download fallito ${url}: ${e.message}`);
+      const why = [e.message, e.cause?.code, e.cause?.message].filter(Boolean).join(" / ");
+      if (attempt >= 4) throw new Error(`Download fallito ${url}: ${why}`);
       await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
     }
   }
@@ -155,6 +156,8 @@ async function main() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((e) => {
     console.error(e.message);
+    // Su GitHub Actions l'errore compare anche nel riepilogo dell'esecuzione
+    if (process.env.GITHUB_ACTIONS) console.log(`::error::${e.message.replace(/\n/g, " ")}`);
     process.exit(1);
   });
 }
