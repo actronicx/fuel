@@ -34,10 +34,21 @@ export function parseCsv(text) {
   const sep = lines[h].includes("|") ? "|" : ";";
   const header = lines[h].split(sep).map((s) => s.trim().toLowerCase());
   const extraction = (lines.slice(0, h).join(" ").match(/\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+  // Alcuni nomi di impianto contengono il separatore ("STOIL SIMPLE | gestori...").
+  // Le celle in più vengono riunite nel nome; le colonne dopo si leggono dalla fine.
+  const nameCol = header.indexOf("nome impianto");
   const rows = [];
   for (const line of lines.slice(h + 1)) {
-    const cells = line.split(sep);
-    if (cells.length < header.length) continue;
+    let cells = line.split(sep);
+    if (cells.length > header.length && nameCol >= 0) {
+      const extra = cells.length - header.length;
+      cells = [
+        ...cells.slice(0, nameCol),
+        cells.slice(nameCol, nameCol + extra + 1).join(sep),
+        ...cells.slice(nameCol + extra + 1),
+      ];
+    }
+    if (cells.length !== header.length) continue;
     const row = {};
     header.forEach((k, i) => (row[k] = (cells[i] ?? "").trim()));
     rows.push(row);
@@ -53,8 +64,16 @@ export function isoDay(s) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
+// Distanza approssimata in km, sufficiente per scovare coordinate assurde
+const km = (a, b) => Math.hypot((a.y - b.y) * 111, (a.x - b.x) * 111 * Math.cos((a.y * Math.PI) / 180));
+
+// "REGGIO DI CALABRIA" -> "Reggio di Calabria", "VIA DEGLI ANGELI" -> "Via degli Angeli"
+const SMALL = new Set(["di", "del", "della", "dei", "degli", "delle", "da", "dal", "e", "in", "sul", "sulla", "al", "alla", "a", "nel", "nella", "nelle", "nei", "negli", "sui", "per", "con"]);
 const titleCase = (s) =>
-  s.toLowerCase().replace(/(^|[\s'’\-\/(])(\p{L})/gu, (_, a, b) => a + b.toUpperCase());
+  s.toLowerCase()
+    .replace(/(^|[\s'’\-\/(])(\p{L})/gu, (_, a, b) => a + b.toUpperCase())
+    .replace(/(?<=\s)(\p{L}+)(?=\s)/gu, (w) => (SMALL.has(w.toLowerCase()) ? w.toLowerCase() : w))
+    .replace(/(?<=\s)(Nell|Dell|Sull|All|D)(?=['’])/g, (w) => w.toLowerCase());
 
 export function build(anagraficaText, prezziText) {
   const ana = parseCsv(anagraficaText);
@@ -76,6 +95,23 @@ export function build(anagraficaText, prezziText) {
     });
   }
 
+  // Coordinate sbagliate nel file MIMIT (es. un distributore di Civitavecchia piazzato
+  // in centro a Roma): scarta chi è lontanissimo dal centro del proprio comune o della
+  // propria provincia, calcolato come mediana delle posizioni dei suoi distributori.
+  let misplaced = 0;
+  const centers = (keyOf) => {
+    const groups = {};
+    for (const s of stations.values()) (groups[keyOf(s)] ||= []).push(s);
+    const mid = (v) => v.sort((a, b) => a - b)[Math.floor(v.length / 2)];
+    return Object.fromEntries(Object.entries(groups).map(([k, g]) => [k, { n: g.length, y: mid(g.map((s) => s.y)), x: mid(g.map((s) => s.x)) }]));
+  };
+  const byComune = centers((s) => s.c + "|" + s.p);
+  const byProv = centers((s) => s.p);
+  for (const [id, s] of stations) {
+    const c = byComune[s.c + "|" + s.p], p = byProv[s.p];
+    if ((c.n >= 3 && km(s, c) > 25) || (p.n >= 5 && km(s, p) > 100)) { stations.delete(id); misplaced++; }
+  }
+
   const fuelByName = Object.fromEntries(Object.entries(FUELS).map(([k, v]) => [v, k]));
   for (const r of pre.rows) {
     const s = stations.get(r.idimpianto);
@@ -90,19 +126,27 @@ export function build(anagraficaText, prezziText) {
     if (day && (!slot[2] || day > slot[2])) slot[2] = day;
   }
 
-  // Scarta i prezzi lontanissimi dalla mediana nazionale (errori di battitura dei gestori),
-  // che altrimenti finirebbero in cima come "miglior scelta".
+  // Scarta i prezzi anomali (errori di battitura dei gestori), che altrimenti finirebbero
+  // in cima come "miglior scelta". I prezzi reali sono molto concentrati: per la benzina
+  // il 99% sta entro pochi centesimi dalla mediana. Limite: 1° (o 99°) percentile
+  // allargato del 10% della mediana.
   const values = {};
   for (const s of stations.values())
     for (const [k, slot] of Object.entries(s.f))
       for (const i of [0, 1]) if (slot[i] !== null) (values[k + i] ||= []).push(slot[i]);
-  const median = {};
-  for (const [k, v] of Object.entries(values)) median[k] = v.sort((a, b) => a - b)[Math.floor(v.length / 2)];
+  const bounds = {};
+  for (const [k, v] of Object.entries(values)) {
+    v.sort((a, b) => a - b);
+    const at = (q) => v[Math.min(v.length - 1, Math.floor(v.length * q))];
+    const m = at(0.5);
+    bounds[k] = [at(0.01) - m * 0.1, at(0.99) + m * 0.1];
+  }
+  let dropped = 0;
   for (const s of stations.values())
     for (const [k, slot] of Object.entries(s.f)) {
       for (const i of [0, 1]) {
-        const m = median[k + i];
-        if (slot[i] !== null && (slot[i] < m * 0.7 || slot[i] > m * 1.5)) slot[i] = null;
+        const b = bounds[k + i];
+        if (slot[i] !== null && (slot[i] < b[0] || slot[i] > b[1])) { slot[i] = null; dropped++; }
       }
       if (slot[0] === null && slot[1] === null) delete s.f[k];
     }
@@ -119,7 +163,7 @@ export function build(anagraficaText, prezziText) {
   }
 
   const comuniList = [...comuni.values()]
-    .map((c) => [c.n, c.p, Math.round((c.y / c.k) * 1e4) / 1e4, Math.round((c.x / c.k) * 1e4) / 1e4])
+    .map((c) => [c.n, c.p, Math.round((c.y / c.k) * 1e4) / 1e4, Math.round((c.x / c.k) * 1e4) / 1e4, c.k])
     .sort((a, b) => a[0].localeCompare(b[0], "it"));
 
   const count = Object.values(tiles).reduce((n, t) => n + t.length, 0);
@@ -127,6 +171,8 @@ export function build(anagraficaText, prezziText) {
     extraction: pre.extraction || ana.extraction,
     generated: new Date().toISOString(),
     stations: count,
+    dropped,
+    misplaced,
     tile: TILE,
     tiles: Object.keys(tiles).sort(),
   };
@@ -193,7 +239,7 @@ async function main() {
     writeFile(path.join(out, "comuni.json"), JSON.stringify(comuni)),
     ...Object.entries(tiles).map(([k, list]) => writeFile(path.join(out, "t", `${k}.json`), JSON.stringify(list))),
   ]);
-  console.log(`Dati del ${meta.extraction}: ${meta.stations} distributori, ${meta.tiles.length} caselle, ${comuni.length} comuni -> ${out}`);
+  console.log(`Dati del ${meta.extraction}: ${meta.stations} distributori, ${meta.dropped} prezzi anomali e ${meta.misplaced} posizioni sbagliate scartati, ${meta.tiles.length} caselle, ${comuni.length} comuni -> ${out}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

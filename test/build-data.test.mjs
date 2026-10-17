@@ -51,3 +51,22 @@ test("riconosce i file nella cartella dal contenuto", async () => {
   assert.equal(f.anagrafica.name, "anagrafica.csv");
   assert.equal(f.prezzi.name, "prezzi.csv");
 });
+
+test("ricostruisce le righe con il separatore dentro il nome", () => {
+  const { rows } = parseCsv(
+    "Estrazione del 2026-10-16\nidImpianto|Gestore|Bandiera|Tipo Impianto|Nome Impianto|Indirizzo|Comune|Provincia|Latitudine|Longitudine\n" +
+    "40820|STOIL SIMPLE|Pompe Bianche|Stradale|STOIL SIMPLE | gestori.prezzibenzina.it|STR. PROV.LE 82|ALESSANDRIA|AL|44.917|8.700\n"
+  );
+  assert.equal(rows[0]["nome impianto"], "STOIL SIMPLE | gestori.prezzibenzina.it");
+  assert.equal(rows[0].comune, "ALESSANDRIA");
+  assert.equal(rows[0].longitudine, "8.700");
+});
+
+test("scarta i distributori con coordinate lontane dal proprio comune", async () => {
+  // Un distributore di Milano con le coordinate di Roma
+  const ana = (await fixture("anagrafica.csv")) + "8888|G|Q8|Stradale|X|VIA X 1|MILANO|MI|41.90|12.49\n";
+  const pre = (await fixture("prezzi.csv")) + "8888|Benzina|1.850|1|16/10/2026 07:00:00\n";
+  const { meta, tiles } = build(ana, pre);
+  assert.ok(!Object.values(tiles).flat().some((s) => s.i === 8888));
+  assert.equal(meta.misplaced, 1);
+});

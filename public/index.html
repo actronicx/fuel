@@ -406,7 +406,9 @@ function showStart(msg = "") {
 async function nearestComune(y, x) {
   const list = await loadComuni();
   let best = null, bd = Infinity;
-  for (const c of list) { const d = distance(y, x, c[2], c[3]); if (d < bd) { bd = d; best = c; } }
+  // I comuni con un solo distributore hanno un "centro" poco affidabile: a parità di
+  // distanza vince il comune con più distributori (la città, non il paese vicino).
+  for (const c of list) { const d = distance(y, x, c[2], c[3]) / Math.sqrt(c[4] || 1); if (d < bd) { bd = d; best = c; } }
   return best ? `Vicino a ${best[0]}` : "La tua posizione";
 }
 
