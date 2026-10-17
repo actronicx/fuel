@@ -1,0 +1,16 @@
+name: Diagnosi rete
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for u in https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv \
+                   https://carburanti.mise.gov.it/ospzApi/registry/servicearea/1 \
+                   https://www.mise.gov.it/images/exportCSV/prezzo_alle_8.csv \
+                   http://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv; do
+            r=$(curl -sS -o /dev/null -m 60 --connect-timeout 30 -w "%{http_code} %{size_download}B %{time_total}s" "$u" 2>&1 | tr '\n' ' ')
+            echo "::notice::$u -> $r"
+            r6=$(curl -6 -sS -o /dev/null -m 30 -w "%{http_code}" "$u" 2>&1 | tr '\n' ' '); echo "::notice::IPv6 $u -> $r6"
+          done
+          echo "::notice::IP runner $(curl -s https://ipinfo.io/country)"
