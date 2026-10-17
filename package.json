@@ -1,0 +1,11 @@
+{
+  "name": "pieno",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/build-data.mjs --out public/data",
+    "data:test": "node scripts/build-data.mjs --out public/data --anagrafica test/fixtures/anagrafica.csv --prezzi test/fixtures/prezzi.csv --min-stations 1",
+    "test": "node --test test/*.test.mjs",
+    "start": "npx --yes serve public -l 5173"
+  }
+}

@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pieno — dove conviene fare benzina</title>
+<meta name="description" content="Trova il distributore dove conviene davvero fare il pieno: prezzi ufficiali aggiornati ogni giorno e calcolo del costo reale, deviazione inclusa.">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111513" media="(prefers-color-scheme: dark)">
+<!-- Cartella dei dati. Nell'app per gli store va messo l'indirizzo completo del sito. -->
+<meta name="pieno-data" content="data/">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root {
+  --bg: #FFFFFF; --soft: #F3F5F4; --ink: #121614; --muted: #5F6B66; --line: #E3E8E5;
+  --accent: #0B7A55; --accent-ink: #FFFFFF; --accent-soft: #E4F3EC; --warn: #9A5B00;
+  --r: 14px; --tap: 48px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111513; --soft: #1A201D; --ink: #E8EEEA; --muted: #98A49F; --line: #27302C;
+    --accent: #3DCB93; --accent-ink: #06261A; --accent-soft: #163327; --warn: #E3A54A;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+[hidden] { display: none !important; }
+
+/* Intestazione */
+header {
+  position: sticky; top: 0; z-index: 5; background: var(--bg);
+  padding-top: env(safe-area-inset-top); border-bottom: 1px solid var(--line);
+}
+header .wrap { padding-bottom: 4px; }
+.bar { display: flex; align-items: center; gap: 8px; height: 56px; }
+.logo { font-weight: 750; font-size: 20px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+.logo svg { width: 24px; height: 24px; color: var(--accent); }
+.spacer { flex: 1; }
+.icon-btn {
+  width: var(--tap); height: var(--tap); border: 0; background: none; border-radius: 50%;
+  display: grid; place-items: center; color: var(--muted);
+}
+.icon-btn:hover { background: var(--soft); }
+.icon-btn svg { width: 22px; height: 22px; }
+
+.fuels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; background: var(--soft); border-radius: 12px; }
+.fuels button {
+  height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; font-size: 15px; color: var(--muted);
+}
+.fuels button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.where {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--tap);
+  border: 0; background: none; padding: 0; text-align: left; color: var(--ink); font-weight: 600;
+}
+.where svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.where .change { margin-left: auto; color: var(--accent); font-weight: 600; font-size: 15px; }
+
+/* Stato iniziale */
+.hero { padding: 48px 0 24px; text-align: center; }
+.hero h1 { font-size: clamp(26px, 7vw, 34px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 12px; }
+.hero p { margin: 0 auto 28px; max-width: 30ch; }
+.primary {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 54px;
+  border: 0; border-radius: var(--r); background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 17px;
+}
+.primary svg { width: 20px; height: 20px; }
+.or { margin: 16px 0; font-size: 14px; }
+.search {
+  width: 100%; min-height: 54px; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--soft); font-size: 17px; outline: none;
+}
+.search:focus { border-color: var(--accent); background: var(--bg); }
+.suggest { list-style: none; margin: 8px 0 0; padding: 0; text-align: left; }
+.suggest button {
+  width: 100%; min-height: var(--tap); border: 0; background: none; text-align: left; padding: 10px 4px;
+  border-bottom: 1px solid var(--line); font-size: 16px;
+}
+.suggest button:hover { background: var(--soft); }
+
+/* Miglior scelta */
+.best {
+  display: block; margin: 16px 0 8px; padding: 18px; border-radius: 18px; background: var(--accent-soft);
+  color: inherit; text-decoration: none;
+}
+.best .tag { font-size: 13px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.best .row1 { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; }
+.best .name { font-size: 20px; font-weight: 700; flex: 1; min-width: 0; }
+.best .price { font-size: 32px; font-weight: 750; letter-spacing: -0.02em; }
+.best .price small { font-size: 15px; font-weight: 600; }
+.best .addr { margin: 2px 0 12px; }
+.best .save { font-weight: 600; }
+.best .go {
+  display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; min-height: var(--tap);
+  border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-weight: 700;
+}
+.best .go svg { width: 18px; height: 18px; }
+
+/* Ordinamento */
+.sort { display: flex; gap: 8px; margin: 20px 0 4px; overflow-x: auto; }
+.sort button {
+  height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: none;
+  font-size: 15px; font-weight: 600; color: var(--muted); white-space: nowrap;
+}
+.sort button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
+.hint { font-size: 13px; margin: 6px 0 4px; }
+
+/* Lista */
+.list { list-style: none; margin: 0; padding: 0; }
+.list a {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 14px 0;
+  border-bottom: 1px solid var(--line); color: inherit; text-decoration: none;
+}
+.list a:active { background: var(--soft); }
+.list .name { font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .price { font-size: 20px; font-weight: 700; text-align: right; }
+.list .meta { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .km { font-size: 14px; text-align: right; }
+.old { color: var(--warn); }
+
+.note { margin: 24px 0; padding: 16px; border-radius: var(--r); background: var(--soft); }
+.foot { margin-top: 32px; font-size: 13px; text-align: center; }
+.foot a { color: inherit; }
+
+/* Impostazioni */
+dialog {
+  width: min(520px, calc(100% - 32px)); border: 0; border-radius: 20px; padding: 20px;
+  background: var(--bg); color: var(--ink); box-shadow: 0 20px 60px rgb(0 0 0 / .3);
+}
+dialog::backdrop { background: rgb(0 0 0 / .4); }
+dialog h2 { margin: 0 0 16px; font-size: 20px; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.field label { font-weight: 600; }
+.field small { display: block; font-weight: 400; color: var(--muted); }
+.seg { display: inline-flex; background: var(--soft); border-radius: 10px; padding: 3px; }
+.seg button { white-space: nowrap; border: 0; background: none; height: 36px; padding: 0 12px; border-radius: 8px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / .12); }
+.field input { width: 84px; height: 40px; text-align: right; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--soft); }
+dialog .primary { margin-top: 20px; min-height: 50px; }
+
+.spin { width: 28px; height: 28px; margin: 64px auto; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: s 0.8s linear infinite; }
+@keyframes s { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-drop" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5c-.3 0-.6.2-.8.4C9.6 5 5.5 10.3 5.5 14a6.5 6.5 0 0 0 13 0c0-3.7-4.1-9-5.7-11.1a1 1 0 0 0-.8-.4Z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></g></symbol>
+  <symbol id="i-nav" viewBox="0 0 24 24"><path fill="currentColor" d="M20.6 3.4a1 1 0 0 0-1.1-.2l-16 7a1 1 0 0 0 .2 1.9l6.6 1.6 1.6 6.6a1 1 0 0 0 1.9.2l7-16a1 1 0 0 0-.2-1.1Z"/></symbol>
+</svg>
+
+<header>
+  <div class="wrap">
+    <div class="bar">
+      <div class="logo"><svg><use href="#i-drop"/></svg>Pieno</div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="openSettings" aria-label="Impostazioni"><svg><use href="#i-gear"/></svg></button>
+    </div>
+    <div class="fuels" role="group" aria-label="Carburante" id="fuels">
+      <button data-fuel="B">Benzina</button>
+      <button data-fuel="G">Diesel</button>
+      <button data-fuel="L">GPL</button>
+      <button data-fuel="M">Metano</button>
+    </div>
+    <button class="where" id="where" hidden>
+      <svg><use href="#i-pin"/></svg><span id="whereLabel"></span><span class="change">Cambia</span>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="start" class="hero" hidden>
+    <h1 id="startTitle">Dove conviene fare il pieno?</h1>
+    <p class="muted">Prezzi ufficiali di tutti i distributori, aggiornati ogni giorno. Ti diciamo quale conviene davvero, strada compresa.</p>
+    <button class="primary" id="locate"><svg><use href="#i-locate"/></svg>Usa la mia posizione</button>
+    <div class="or muted">oppure</div>
+    <input class="search" id="search" type="search" placeholder="Cerca un comune" autocomplete="off" enterkeyhint="search" aria-label="Cerca un comune">
+    <ul class="suggest" id="suggest"></ul>
+    <p class="muted" id="startMsg" role="status"></p>
+  </section>
+
+  <div id="loading" class="spin" role="status" aria-label="Caricamento"></div>
+
+  <section id="results" hidden>
+    <a class="best" id="best" target="_blank" rel="noopener"></a>
+    <div class="sort" role="group" aria-label="Ordina" id="sort">
+      <button data-sort="real">Più conveniente</button>
+      <button data-sort="dist">Più vicino</button>
+      <button data-sort="price">Prezzo</button>
+    </div>
+    <p class="hint muted" id="hint"></p>
+    <ul class="list" id="list"></ul>
+  </section>
+
+  <p class="note muted" id="empty" hidden></p>
+
+  <footer class="foot muted" id="foot"></footer>
+</main>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <h2 id="settingsTitle">Impostazioni</h2>
+  <div class="field">
+    <label>Servizio</label>
+    <div class="seg" id="mode" role="group" aria-label="Servizio">
+      <button data-mode="0">Self</button>
+      <button data-mode="1">Servito</button>
+    </div>
+  </div>
+  <div class="field">
+    <label for="liters">Litri per pieno<small>Quanto metti di solito</small></label>
+    <input id="liters" type="number" inputmode="numeric" min="5" max="120" step="1">
+  </div>
+  <div class="field">
+    <label for="kmpl">Consumo (km/l)<small>Serve a calcolare la deviazione</small></label>
+    <input id="kmpl" type="number" inputmode="decimal" min="3" max="40" step="0.5">
+  </div>
+  <div class="field">
+    <label>Distanza massima</label>
+    <div class="seg" id="radius" role="group" aria-label="Distanza massima">
+      <button data-r="5">5 km</button>
+      <button data-r="10">10 km</button>
+      <button data-r="20">20 km</button>
+    </div>
+  </div>
+  <button class="primary" id="closeSettings">Fatto</button>
+</dialog>
+
+<script>
+"use strict";
+const DATA = document.querySelector('meta[name="pieno-data"]').content;
+const FUEL_NAME = { B: "benzina", G: "diesel", L: "GPL", M: "metano" };
+const ROAD = 1.3;       // la strada è in media il 30% più lunga della linea d'aria
+const STALE_DAYS = 7;   // prezzi più vecchi vengono segnalati ed esclusi dalla miglior scelta
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d) => n.toLocaleString("it-IT", { minimumFractionDigits: d, maximumFractionDigits: d });
+const euro = (n) => fmt(n, 2) + " €";
+const km = (d) => (d < 1 ? Math.round(d * 1000 / 50) * 50 + " m" : fmt(d, d < 10 ? 1 : 0) + " km");
+const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// Preferenze salvate solo su questo dispositivo
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("pieno." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("pieno." + k, JSON.stringify(v)); } catch {} },
+};
+const state = {
+  fuel: store.get("fuel", "B"),
+  mode: store.get("mode", 0),
+  liters: store.get("liters", 40),
+  kmpl: store.get("kmpl", 15),
+  radius: store.get("radius", 10),
+  sort: store.get("sort", "real"),
+  place: store.get("place", null), // { y, x, label }
+};
+const save = (...keys) => keys.forEach((k) => store.set(k, state[k]));
+
+let meta = null, comuni = null;
+const tiles = new Map();
+
+async function getJSON(url) {
+  const r = await fetch(DATA + url);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+const loadComuni = () => (comuni ||= getJSON("comuni.json").catch(() => { comuni = null; return []; }));
+
+function distance(a, b, c, d) {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (c - a) * rad, dLon = (d - b) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a * rad) * Math.cos(c * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+async function stationsNear(y, x, r) {
+  const t = meta.tile, dy = r / 111, dx = r / (111 * Math.cos(y * Math.PI / 180));
+  const keys = [];
+  for (let a = Math.floor((y - dy) / t); a <= Math.floor((y + dy) / t); a++)
+    for (let b = Math.floor((x - dx) / t); b <= Math.floor((x + dx) / t); b++)
+      if (meta.tiles.includes(a + "_" + b)) keys.push(a + "_" + b);
+  await Promise.all(keys.filter((k) => !tiles.has(k)).map((k) => getJSON("t/" + k + ".json").then((l) => tiles.set(k, l))));
+  return keys.flatMap((k) => tiles.get(k) || []);
+}
+
+function daysOld(day) {
+  return Math.round((Date.parse(meta.extraction) - Date.parse(day)) / 864e5);
+}
+
+async function compute() {
+  const { y, x } = state.place;
+  let radius = state.radius, rows = [];
+  // Se in zona ci sono pochi distributori allarghiamo la ricerca
+  for (const r of [radius, 25, 50]) {
+    if (r < radius) continue;
+    radius = r;
+    const all = await stationsNear(y, x, r);
+    rows = all.flatMap((s) => {
+      const f = s.f[state.fuel];
+      if (!f) return [];
+      // Se manca il prezzo nella modalità scelta usiamo l'altra, segnalandolo
+      let price = f[state.mode], alt = false;
+      if (price == null) { price = f[1 - state.mode]; alt = !"LM".includes(state.fuel); } // GPL e metano sono quasi sempre serviti
+      if (price == null) return [];
+      const d = distance(y, x, s.y, s.x);
+      const road = d * ROAD;
+      if (road > r) return [];
+      const tripLiters = (2 * road) / state.kmpl;  // andata e ritorno
+      return [{ s, price, alt, d, road, real: price * (state.liters + tripLiters), old: f[2] ? daysOld(f[2]) : 99 }];
+    });
+    if (rows.length >= 3) break;
+  }
+  return { rows, radius };
+}
+
+function mapsUrl(s) {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return ios ? `https://maps.apple.com/?daddr=${s.y},${s.x}` : `https://www.google.com/maps/dir/?api=1&destination=${s.y},${s.x}`;
+}
+
+function oldLabel(r) {
+  if (r.old < STALE_DAYS) return "";
+  return r.old >= 99 ? "data prezzo sconosciuta" : `prezzo di ${r.old} giorni fa`;
+}
+
+async function render() {
+  document.querySelectorAll("#fuels button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.fuel === state.fuel));
+  document.querySelectorAll("#sort button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sort === state.sort));
+  if (!state.place) return showStart();
+
+  $("start").hidden = true;
+  $("where").hidden = false;
+  $("whereLabel").textContent = state.place.label;
+  const { rows, radius } = await compute();
+  $("loading").hidden = true;
+
+  if (!rows.length) {
+    $("results").hidden = true;
+    $("empty").hidden = false;
+    $("empty").textContent = `Nessun distributore con ${FUEL_NAME[state.fuel]} entro ${radius} km. Prova un altro carburante o un'altra zona.`;
+    return;
+  }
+  $("empty").hidden = true;
+  $("results").hidden = false;
+
+  // Miglior scelta: costo reale più basso tra i prezzi recenti
+  const fresh = rows.filter((r) => r.old < STALE_DAYS);
+  const pool = fresh.length ? fresh : rows;
+  const best = pool.reduce((a, b) => (b.real < a.real ? b : a));
+  const nearest = pool.reduce((a, b) => (b.d < a.d ? b : a));
+  const saving = nearest.real - best.real;
+  const saveText = best === nearest || saving < 0.05
+    ? "È anche il distributore più vicino."
+    : `Risparmi <b>${euro(saving)}</b> sul pieno rispetto al più vicino (${esc(nearest.s.b)}, ${km(nearest.road)}).`;
+  $("best").href = mapsUrl(best.s);
+  $("best").innerHTML = `
+    <div class="tag">Ti conviene qui</div>
+    <div class="row1"><div class="name">${esc(best.s.b)}</div>
+      <div class="price num">${fmt(best.price, 3)}<small> €/l</small></div></div>
+    <div class="addr muted">${esc(best.s.a)}, ${esc(best.s.c)} · ${km(best.road)}${best.alt ? " · " + (state.mode ? "solo self" : "solo servito") : ""}</div>
+    <div class="save">${saveText}</div>
+    <div class="go"><svg><use href="#i-nav"/></svg>Portami lì</div>`;
+
+  const by = { real: (a, b) => a.real - b.real, dist: (a, b) => a.d - b.d, price: (a, b) => a.price - b.price }[state.sort];
+  rows.sort(by);
+  $("hint").textContent = {
+    real: `Prezzo più il carburante per arrivarci, su un pieno da ${state.liters} litri.`,
+    dist: "Distanza stimata su strada.",
+    price: "Solo prezzo al litro, senza contare la strada.",
+  }[state.sort] + (radius > state.radius ? ` Ricerca allargata a ${radius} km.` : "");
+
+  $("list").innerHTML = rows.slice(0, 40).map((r) => {
+    const o = oldLabel(r);
+    return `<li><a href="${mapsUrl(r.s)}" target="_blank" rel="noopener">
+      <span class="name">${esc(r.s.b)}</span>
+      <span class="price num">${fmt(r.price, 3)}</span>
+      <span class="meta muted">${esc(r.s.a)}, ${esc(r.s.c)}${r.alt ? " · " + (state.mode ? "self" : "servito") : ""}${o ? ` · <span class="old">${o}</span>` : ""}</span>
+      <span class="km muted num">${km(r.road)}</span></a></li>`;
+  }).join("");
+}
+
+function showStart(msg = "") {
+  $("loading").hidden = true;
+  $("results").hidden = true;
+  $("empty").hidden = true;
+  $("where").hidden = !state.place;
+  $("start").hidden = false;
+  $("startMsg").textContent = msg;
+}
+
+async function nearestComune(y, x) {
+  const list = await loadComuni();
+  let best = null, bd = Infinity;
+  for (const c of list) { const d = distance(y, x, c[2], c[3]); if (d < bd) { bd = d; best = c; } }
+  return best ? `Vicino a ${best[0]}` : "La tua posizione";
+}
+
+function locate() {
+  if (!navigator.geolocation) return showStart("Il tuo dispositivo non permette di trovare la posizione. Cerca un comune.");
+  $("startMsg").textContent = "Cerco la tua posizione…";
+  navigator.geolocation.getCurrentPosition(
+    async (p) => {
+      const { latitude: y, longitude: x } = p.coords;
+      setPlace({ y, x, label: await nearestComune(y, x) });
+    },
+    (e) => showStart(e.code === 1
+      ? "Permesso di posizione negato. Puoi attivarlo nelle impostazioni del browser, oppure cercare un comune."
+      : "Non riesco a trovare la posizione. Cerca un comune."),
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
+
+function setPlace(p) {
+  state.place = p; save("place");
+  $("search").value = ""; $("suggest").innerHTML = "";
+  $("loading").hidden = false; $("start").hidden = true;
+  render();
+}
+
+async function suggest() {
+  const q = norm($("search").value.trim());
+  if (q.length < 2) return ($("suggest").innerHTML = "");
+  const list = await loadComuni();
+  const hits = list.filter((c) => norm(c[0]).startsWith(q)).slice(0, 6);
+  $("suggest").innerHTML = hits.length
+    ? hits.map((c) => `<li><button data-i="${list.indexOf(c)}">${esc(c[0])} <span class="muted">(${esc(c[1])})</span></button></li>`).join("")
+    : `<li class="muted" style="padding:10px 4px">Nessun comune trovato</li>`;
+}
+
+function syncSettings() {
+  document.querySelectorAll("#mode button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.mode === state.mode));
+  document.querySelectorAll("#radius button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.r === state.radius));
+  $("liters").value = state.liters;
+  $("kmpl").value = state.kmpl;
+}
+
+// Eventi
+$("fuels").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.fuel = b.dataset.fuel; save("fuel"); render();
+});
+$("sort").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.sort = b.dataset.sort; save("sort"); render();
+});
+$("where").addEventListener("click", () => { showStart(); $("startTitle").textContent = "Cambia zona"; $("search").focus(); });
+$("locate").addEventListener("click", locate);
+$("search").addEventListener("input", suggest);
+$("search").addEventListener("keydown", (e) => { if (e.key === "Enter") $("suggest").querySelector("button")?.click(); });
+$("suggest").addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const c = (await loadComuni())[+b.dataset.i];
+  setPlace({ y: c[2], x: c[3], label: `${c[0]} (${c[1]})` });
+});
+$("openSettings").addEventListener("click", () => { syncSettings(); $("settings").showModal(); });
+$("closeSettings").addEventListener("click", () => $("settings").close());
+$("settings").addEventListener("click", (e) => { if (e.target === $("settings")) $("settings").close(); });
+$("mode").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.mode = +b.dataset.mode; save("mode"); syncSettings();
+});
+$("radius").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.radius = +b.dataset.r; save("radius"); syncSettings();
+});
+const clamp = (v, lo, hi, d) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+$("liters").addEventListener("change", () => { state.liters = clamp(+$("liters").value, 5, 120, 40); save("liters"); });
+$("kmpl").addEventListener("change", () => { state.kmpl = clamp(+$("kmpl").value, 3, 40, 15); save("kmpl"); });
+$("settings").addEventListener("close", () => state.place && render());
+
+// Avvio
+(async () => {
+  try {
+    meta = await getJSON("meta.json");
+  } catch {
+    $("loading").hidden = true;
+    $("empty").hidden = false;
+    $("empty").textContent = "Non riesco a caricare i prezzi. Controlla la connessione e riprova.";
+    return;
+  }
+  const d = new Date(meta.extraction + "T12:00").toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  $("foot").innerHTML = `Prezzi del ${d} · ${meta.stations.toLocaleString("it-IT")} distributori<br>
+    Fonte: <a href="https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti" target="_blank" rel="noopener">Ministero delle Imprese e del Made in Italy</a>, open data`;
+  render();
+})();
+
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

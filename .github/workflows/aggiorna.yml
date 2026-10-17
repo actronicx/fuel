@@ -1,0 +1,44 @@
+# Ogni mattina scarica i prezzi dal Ministero, prepara i dati e pubblica il sito
+# su GitHub Pages. Se il download fallisce resta online la versione precedente.
+name: Aggiorna prezzi e pubblica
+
+on:
+  schedule:
+    - cron: "40 6 * * *"   # 06:40 UTC = 8:40 in Italia d'estate, 7:40 d'inverno
+    - cron: "40 11 * * *"  # secondo tentativo, nel caso il file del mattino arrivi tardi
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/*.test.mjs
+      - run: node scripts/build-data.mjs --out public/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
