@@ -3,9 +3,11 @@
 name: Aggiorna prezzi e pubblica
 
 on:
-  schedule:
-    - cron: "40 6 * * *"   # 06:40 UTC = 8:40 in Italia d'estate, 7:40 d'inverno
-    - cron: "40 11 * * *"  # secondo tentativo, nel caso il file del mattino arrivi tardi
+  # Sospeso: i server GitHub (USA) non raggiungono mimit.gov.it. Da riattivare
+  # quando il download avverrà da un server in Italia.
+  # schedule:
+  #   - cron: "40 6 * * *"   # 06:40 UTC = 8:40 in Italia d'estate, 7:40 d'inverno
+  #   - cron: "40 11 * * *"  # secondo tentativo, nel caso il file del mattino arrivi tardi
   push:
     branches: [main]
   workflow_dispatch:
